@@ -1,0 +1,219 @@
+#实现功能：  遍历文件夹下文件，汇总在模板表格里
+
+import openpyxl
+import os.path
+import os
+from openpyxl.styles import PatternFill,Alignment   #设置字填充和对齐
+from openpyxl.styles import NamedStyle
+from copy import copy
+
+from tkinter import *
+import tkinter as tk # module to create a GU
+from tkinter import filedialog   #filedialog需要单独插入，类似于子类的I存在
+import time
+from openpyxl.utils import get_column_letter #列宽要用
+
+
+
+t1=time.time()
+#==================================【格式预设值】 ================================
+
+
+#预设值一些格式
+titlefont=('微软雅黑', 9)
+textfont=('微软雅黑', 8)
+textfont2=('微软雅黑', 10,'bold')
+
+#=============================================================================
+root= tk.Tk()
+
+#小工具框大小 
+canvas1 = tk.Canvas(root, width = 900, height = 500,  relief = 'raised') # create the canvas (tkinter module)创建TK的矩形大小
+canvas1.pack()
+
+#小工具标题
+root.title('多个相同模板文件汇总工具')
+
+#【函数】---选择查找文件夹
+def openfiles():
+    global filespath1,example_path1 #全局都能用
+    example_path = filedialog.askdirectory()  #文件夹路径选择
+    filespath1=example_path
+    print('选择查找文件夹：',filespath1)  #文件夹的路径
+    
+    '''用来显示文本，但不可复制，不适用
+    canvas1.create_text(155,80,text=filespath1,
+                        fill="darkblue",
+                        font=textfont,                        
+                        anchor=W,
+                        justify=LEFT) #显示路径文本
+    '''
+    searchfiles = tk.Entry (root,width =100) # create 2st entry box
+    canvas1.create_window(560, 80, window= searchfiles ) # create a canvas window to place the 2nd entry box on top of the background image        
+    searchfiles.delete(0,END)
+    searchfiles.insert(0,filespath1) #输入窗口自动写入选择的文件夹 
+    
+    #rootdir=os.getcwd()             # 读取该工程文件所在文件夹的路径
+    rootdir=filespath1
+    print("该文件夹路径：",rootdir)             # 打印文件夹路径
+    files = os.listdir(rootdir)  # 获得文件夹下的所有文件
+    num = len(files)  # 获取文件数量
+    print("该文件夹下共有文件个数：",num)
+    
+
+def main():
+    inputrow = int(entry1.get())  #开始汇总的行
+    inputcol =int(entry2.get())   #开始汇总的列
+   
+    
+    print("开始了")
+    #rootdir=os.getcwd()             # 读取该工程文件所在文件夹的路径
+    rootdir=filespath1
+    print("该文件夹路径：",rootdir)             # 打印文件夹路径
+    files = os.listdir(rootdir)  # 获得文件夹下的所有文件
+    num = len(files)  # 获取文件数量
+    print("该文件夹下共有文件个数：",num)
+    
+    """
+    -------------------------------------------------------------------
+    【此段是新建表格来汇总,我们本案例是读取表格写入，优点是会保留表格格式】
+    finalWB = openpyxl.Workbook()  # 新建工作簿用来汇总数据
+    sheet = finalWB.active
+    sheet.title = "Sheet1"  # 修改工作表名字
+    ----------------------------------------------------------------------
+    """
+    # ## 读取要汇总的表格-该表格在根目录下
+    """
+    wbsum = openpyxl.load_workbook(filespath1+"/"+r"空模板.xlsx")  #表格全程，包括格式
+    wssum= wbsum.get_sheet_by_name(sheet_names[0])    #表格需要汇总的sheet名称
+    """
+    
+    wbsum = openpyxl.Workbook()  # 新建工作簿用来汇总数据
+    wssum= wbsum.worksheets[0]## index为0为第一张表 
+
+    
+    print("Reading data...Please wait")
+
+    crow =inputrow  # 从新表的第 2行开始填入数据
+    
+    ##以下程序是遍历每一个文件进行文件复制
+    numexcel=0
+    
+    for i in range(num): # 遍历每一个Excel文件
+        
+        if os.path.splitext(files[i])[1] == ".xlsx"   and ("~$" not in  os.path.splitext(files[i])[1]) :   #新增加----- 筛选xlsx文件
+            pathnew = os.path.join(rootdir, files[i])
+            
+            if os.path.isfile(pathnew):
+                
+                if (files[i] == "A_已汇总.xlsx" or files[i] =="空模板.xlsx"):
+                    continue 
+                else:
+                    numexcel=numexcel+1
+                   
+                    
+                    wb = openpyxl.load_workbook(filename=pathnew)
+                    ws= wb.worksheets[0]
+                    end_row = ws.max_row
+                    end_column = ws.max_column
+                    start_row = inputrow     # 从第 2 行开始取数据（第二行是表头）
+                    start_column = inputcol  # 从第 1 列开始取数据
+              
+                    
+                    for m in range(start_row, end_row + 1):                   
+                        if ws.cell(row=m, column=2).value is None:  # 当第二列的项目名称是空，那么停止
+                            break
+                        else:
+                            for n in range(start_column, end_column + 1):                                                                
+                                #wssum.row_dimensions[1].height = rowh  #调整行高度
+                                wssum.cell(row=crow, column=n).alignment = Alignment(wrapText=True)  #自动自适应换行
+                                wssum.cell(row=crow, column=n).value = ws.cell(row=m, column=n).value
+                                #数字格式的复制                                
+                                wssum.cell(row=crow, column=n).number_format = copy(ws.cell(row=m, column=n).number_format)                                                                              
+                                #列宽的复制!!!!!!!!!!!!!!!!!! 
+                                wssum.column_dimensions[get_column_letter(crow)].width=copy(ws.column_dimensions[get_column_letter(m)].width)                            
+                                #字体的复制                                
+                                wssum.cell(row=crow, column=n).font = copy(ws.cell(row=m, column=n).font)
+                                #底色的复制                             
+                                wssum.cell(row=crow, column=n).fill = copy(ws.cell(row=m, column=n).fill)
+                                #对齐的复制
+                                wssum.cell(row=crow, column=n).alignment = copy(ws.cell(row=m, column=n).alignment)
+                                #边框的复制
+                                wssum.cell(row=crow, column=n).border = copy(ws.cell(row=m, column=n).border)
+                                
+                            crow += 1    
+                            
+                #print(files[i])
+                #先把标题整行先复制过来
+                    for u in range(1, start_row):                                           
+                        for v in range(1, end_column + 1):                            
+                            wssum.cell(row=u, column=v).value = ws.cell(row=u, column=v).value
+                            wssum.cell(row=u, column=v).number_format = copy(ws.cell(row=u, column=v).number_format)                                                                                                                                        
+                            wssum.cell(row=u, column=v).font = copy(ws.cell(row=u, column=v).font)                                                        
+                            wssum.cell(row=u, column=v).fill = copy(ws.cell(row=u, column=v).fill)                            
+                            wssum.cell(row=u, column=v).alignment = copy(ws.cell(row=u, column=v).alignment)                            
+                            wssum.cell(row=u, column=v).border = copy(ws.cell(row=u, column=v).border)
+                
+    #print("汇总的文件总数是:", numexcel)
+    
+    wbsum.save(filespath1+"//"+r'A_已汇总.xlsx')  # 整理后的文件命名为allcase.xlsx，保存到SortExcel文件夹下
+    finishtext = tk.Entry (root,width = 100) # create 2st entry box
+    canvas1.create_window(560, 220, window= finishtext ) # create a canvas window to place the 2nd entry box on top of the background image        
+    finishtext.delete(0,END)
+    
+    t2=time.time()
+    t=t2-t1
+    t=round(t,2)
+    #print("用时"+str(t)+"秒")
+    
+    text7="恭喜您!"+" 用时 "+str(t)+" 秒~"+" 您共汇总了 【"+str(numexcel)+"】 个文件！\n 文件名为A_已汇总.xlsx"
+    finishtext.insert(0,text7) #输入窗口自动写入选择的文件夹  
+
+    
+
+
+
+#————————————————————————————————————————————————————————————————————————————
+canvas1.create_text(80,120,text="Step2： 请修改需汇总的正文内容开始行与列（标题行与序号列要排除）",fill="blue",font=textfont2,                        
+                    anchor=W,justify=LEFT) #显示路径文本     
+
+
+canvas1.create_text(80,150,text="开始行：",fill="black",font=textfont,anchor=W,justify=LEFT) #宽度-文本 
+entry1 = tk.Entry (root,width = 10,background = 'yellow',insertbackground = 'red',insertwidth = 2,justify=CENTER) # create entry box
+canvas1.create_window(160, 150, window=entry1) # create a canvas window to placeentry box on top of the background image        
+entry1.delete(0,END)
+entry1.insert(0,"2")#输入默认值2
+
+canvas1.create_text(240,150,text="开始列：",fill="black",font=textfont,anchor=W,justify=LEFT) #显示路径文本 
+entry2 = tk.Entry (root,width = 10,background = 'yellow',insertbackground = 'red',insertwidth = 2,justify=CENTER) # create 2st entry box
+canvas1.create_window(320, 150, window=entry2) # create a canvas window to place the 2nd entry box on top of the background image
+entry2.delete(0,END)
+entry2.insert(0,"1")
+
+
+
+################## step1:  【按钮】-选择【需汇总文件夹】  ##################  
+button1 = tk.Button (root, text='Step1： 选择文件夹',width=18,command=openfiles,font=titlefont,bg='lightblue') 
+canvas1.create_window(150, 80, window=button1)
+    
+################## step1:  【按钮】-执行汇总  ##################  
+button2 = tk.Button (root, text='Step3： 执行汇总',width=18,command=main,font=titlefont,bg='orange') 
+canvas1.create_window(150, 220, window=button2)
+
+
+
+
+######### 文字说明 #######
+w = tk.Label(root, 
+        text="【文件汇总小工具】：实现同一路径同一模板下的多个文件汇总。  \n\n 版本号：V1.0（20190923）\n作者：XXJ \n 电话：596217",
+		 fg = "black",
+		 bg = "light green",
+		 font = titlefont,
+         width = 60,
+         height = 5)
+canvas1.create_window(290, 400, window=w )
+
+
+
+print("Finish!")
+root.mainloop()
