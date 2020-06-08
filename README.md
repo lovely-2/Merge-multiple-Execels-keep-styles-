@@ -1,2 +1,3 @@
-# -Python-Excel-GUI-
+# -基于python汇总多个Excel文件-
 使用Python实现多个Excel文件的汇总，保留表格源格式，GUI形式
+注意：程序判断条件是基于第二列内容不为空时进行合并。
